@@ -7,11 +7,12 @@
 #define PAGINAS_VIRTUAIS 10
 #define TOTAL_PAGINAS 10
 #define TOTAL_QUADROS 4
-#define __INT_MAX__ 99999
+#define INT_MAX_SIMULADOR 99999
 
 typedef enum {
     FIFO,
-    LRU
+    LRU,
+    CLOCK
 } AlgoritmoSubstituicao;
 
 AlgoritmoSubstituicao algoritmo_usado = FIFO;
@@ -33,6 +34,7 @@ int acessos[TOTAL_ACESSOS];
 Pagina tabela_paginas[TOTAL_PAGINAS];
 Quadro memoria_fisica[TOTAL_QUADROS];
 int ponteiro_fifo = 0;
+int ponteiro_clock = 0;
 int tempo_atual = 0;
 
 GtkWidget *label_info;
@@ -62,6 +64,9 @@ const char *css_data =
     "  color: #000000;"
     "  font-size: 23px;"
     "  font-weight: bold;"
+    "}"
+    "frame.clock-pointer {"
+    "  border: 4px dashed #FFD700;"
     "}"
     "#janela-principal {"
     "  background-color: #3D6665;"
@@ -102,6 +107,7 @@ void inicializar_simulador() {
         memoria_fisica[i].pagina_virtual = -1;
     }
     ponteiro_fifo = 0;
+    ponteiro_clock = 0;
 }
 
 int substituir_pagina_fifo() {
@@ -112,7 +118,7 @@ int substituir_pagina_fifo() {
 
 int substituir_pagina_lru() {
     int quadro_mais_antigo = -1;
-    int tempo_mais_antigo = __INT_MAX__;
+    int tempo_mais_antigo = INT_MAX_SIMULADOR;
     for (int i = 0; i < TOTAL_QUADROS; i++) {
         int pagina = memoria_fisica[i].pagina_virtual;
         int tempo = tabela_paginas[pagina].timestamp;
@@ -122,6 +128,19 @@ int substituir_pagina_lru() {
         }
     }
     return quadro_mais_antigo;
+}
+
+int substituir_pagina_clock() {
+    while (1) {
+        int pagina = memoria_fisica[ponteiro_clock].pagina_virtual;
+        if (tabela_paginas[pagina].bitR == 0) {
+            int escolhido = ponteiro_clock;
+            ponteiro_clock = (ponteiro_clock + 1) % TOTAL_QUADROS;
+            return escolhido;
+        }
+        tabela_paginas[pagina].bitR = 0;
+        ponteiro_clock = (ponteiro_clock + 1) % TOTAL_QUADROS;
+    }
 }
 
 void carregar_pagina(int pagina, int tempo_atual) {
@@ -137,7 +156,14 @@ void carregar_pagina(int pagina, int tempo_atual) {
             return;
         }
     }
-    int quadro_substituido = (algoritmo_usado == FIFO) ? substituir_pagina_fifo() : substituir_pagina_lru();
+    int quadro_substituido;
+    if (algoritmo_usado == FIFO)
+        quadro_substituido = substituir_pagina_fifo();
+    else if (algoritmo_usado == LRU)
+        quadro_substituido = substituir_pagina_lru();
+    else
+        quadro_substituido = substituir_pagina_clock();
+
     int pagina_antiga = memoria_fisica[quadro_substituido].pagina_virtual;
     tabela_paginas[pagina_antiga].atual = 0;
     tabela_paginas[pagina_antiga].quadro = -1;
@@ -148,6 +174,7 @@ void carregar_pagina(int pagina, int tempo_atual) {
     tabela_paginas[pagina].timestamp = tempo_atual;
     ultimo_page_fault = 1;
 }
+
 
 void acessar_pagina(int numero_pagina, int tempo_atual) {
     if (tabela_paginas[numero_pagina].atual) {
@@ -190,11 +217,17 @@ void atualizar_interface() {
             snprintf(info, sizeof(info), "Q%d\n[vazio]", i);
         }
         gtk_label_set_text(GTK_LABEL(frame_labels[i]), info);
+
         GtkStyleContext *context = gtk_widget_get_style_context(frames[i]);
+        gtk_style_context_remove_class(context, "page-fault");
+        gtk_style_context_remove_class(context, "clock-pointer");
+
         if (ultimo_page_fault && memoria_fisica[i].pagina_virtual == acessos[tempo_atual]) {
             gtk_style_context_add_class(context, "page-fault");
-        } else {
-            gtk_style_context_remove_class(context, "page-fault");
+        }
+
+        if (algoritmo_usado == CLOCK && i == ponteiro_clock) {
+            gtk_style_context_add_class(context, "clock-pointer");
         }
     }
     atualizar_lista_paginas();
@@ -203,7 +236,12 @@ void atualizar_interface() {
 void on_next_clicked(GtkButton *button, gpointer user_data) {
     if (!simulacao_iniciada) {
         const gchar *alg_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_algoritmo));
-        algoritmo_usado = (g_strcmp0(alg_text, "LRU") == 0) ? LRU : FIFO;
+        if (g_strcmp0(alg_text, "LRU") == 0)
+            algoritmo_usado = LRU;
+        else if (g_strcmp0(alg_text, "Clock") == 0)
+            algoritmo_usado = CLOCK;
+        else
+            algoritmo_usado = FIFO;
         simulacao_iniciada = TRUE;
         gtk_widget_set_sensitive(combo_algoritmo, FALSE);
     }
@@ -216,6 +254,7 @@ void on_next_clicked(GtkButton *button, gpointer user_data) {
         gtk_widget_set_sensitive(button_next, FALSE);
     }
 }
+
 
 void on_reset_clicked(GtkButton *button, gpointer user_data) {
     // resetar variaveis
@@ -270,6 +309,7 @@ int main(int argc, char *argv[]) {
     combo_algoritmo = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "FIFO");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "LRU");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "Clock");
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo_algoritmo), 0);
     gtk_box_pack_start(GTK_BOX(main_vbox), combo_algoritmo, FALSE, FALSE, 5);
 

@@ -69,8 +69,8 @@ int menu() {
     printf("\n===== SIMULADOR DE PAGINAÇAO =====\n");
     printf("1 - Escolher algoritmo de substituicao\n");
     printf("2 - Mostrar sequencia de acessos\n");
-    printf("3 - Iniciar simulaçao passo a passo\n");
-    printf("4 - Executar simulaçao completa (automatico)\n");
+    printf("3 - Iniciar simulacao passo a passo\n");
+    printf("4 - Executar simulacao completa (automatico)\n");
     printf("5 - Gerar nova sequencia de acessos\n");
     printf("6 - Sair\n");
     printf("Escolha uma opcao: ");
@@ -213,7 +213,6 @@ int main() {
     gerar_acessos();
     inicializar_simulador();
 
-<<<<<<< HEAD
     do {
         opcao = menu();
         switch (opcao) {
@@ -257,16 +256,6 @@ int main() {
         }
 
     } while (opcao != 6);
-=======
-    printf("Escolha o algoritmo de substituicao:\n1 - FIFO\n2 - LRU\n> ");
-    int opcao;
-    scanf("%d", &opcao);
-    if (opcao == 2) algoritmo_usado = LRU;
-
-    printf("\n--- Iniciando Simulacao ---\n");
-    imprimir_acessos();
-    executar_simulacao();
->>>>>>> e100c9b752cf1301588feb3755bc080f571da13d
 
     return 0;
 }

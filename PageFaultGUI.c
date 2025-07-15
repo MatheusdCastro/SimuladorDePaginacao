@@ -36,10 +36,10 @@ int ponteiro_fifo = 0;
 int tempo_atual = 0;
 
 GtkWidget *label_info;
-GtkWidget *button_next;
-GtkWidget *button_reset; // botão Reiniciar
+GtkWidget *button_next; 
+GtkWidget *button_reset; 
 GtkWidget *combo_algoritmo;
-GtkWidget *memory_grid;
+GtkWidget *memory_grid; 
 GtkWidget *status_label;
 GtkWidget *pages_list_box;
 GtkWidget *frames[TOTAL_QUADROS];
@@ -218,15 +218,15 @@ void on_next_clicked(GtkButton *button, gpointer user_data) {
 }
 
 void on_reset_clicked(GtkButton *button, gpointer user_data) {
-    // Resetar variáveis
+    // resetar variaveis
     tempo_atual = 0;
     simulacao_iniciada = FALSE;
     ultimo_page_fault = 0;
 
-    // Resetar tabelas e memória
+    
     inicializar_simulador();
 
-    // Limpar lista de páginas exibidas
+    
     GList *children, *iter;
     children = gtk_container_get_children(GTK_CONTAINER(pages_list_box));
     for (iter = children; iter != NULL; iter = g_list_next(iter)) {
@@ -234,17 +234,17 @@ void on_reset_clicked(GtkButton *button, gpointer user_data) {
     }
     g_list_free(children);
 
-    // Reabilitar controles
+    
     gtk_widget_set_sensitive(combo_algoritmo, TRUE);
     gtk_widget_set_sensitive(button_next, TRUE);
 
-    // Atualizar label inicial
+    
     gtk_label_set_text(GTK_LABEL(label_info), "Simulação reiniciada. Escolha o algoritmo e clique em Próximo.");
 
-    // Apagar mensagem do status_label (tempo)
+    
     gtk_label_set_text(GTK_LABEL(status_label), "");
 
-    // Resetar frames visuais
+    // resetar botoes
     for (int i = 0; i < TOTAL_QUADROS; i++) {
         gtk_label_set_text(GTK_LABEL(frame_labels[i]), "Q[vazio]");
         GtkStyleContext *context = gtk_widget_get_style_context(frames[i]);
@@ -292,7 +292,7 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < TOTAL_QUADROS; i++) {
         frames[i] = gtk_frame_new(NULL);
-        gtk_widget_set_size_request(frames[i], 150, 150); // Tamanho aumentado
+        gtk_widget_set_size_request(frames[i], 150, 150); 
         frame_labels[i] = gtk_label_new("Q[vazio]");
         gtk_container_add(GTK_CONTAINER(frames[i]), frame_labels[i]);
         gtk_grid_attach(GTK_GRID(memory_grid), frames[i], i % 2, i / 2, 1, 1);
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
     status_label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(vbox_left), status_label, FALSE, FALSE, 5);
 
-    // Criar alinhamento para centralizar os botões
+    // alinhar botoes
     GtkWidget *align_buttons = gtk_alignment_new(0.5, 0.5, 0, 0);
     gtk_box_pack_start(GTK_BOX(vbox_left), align_buttons, FALSE, FALSE, 5);
 

@@ -37,14 +37,13 @@ int tempo_atual = 0;
 
 GtkWidget *label_info;
 GtkWidget *button_next;
+GtkWidget *button_reset; // botão Reiniciar
 GtkWidget *combo_algoritmo;
 GtkWidget *memory_grid;
 GtkWidget *status_label;
 GtkWidget *pages_list_box;
-
 GtkWidget *frames[TOTAL_QUADROS];
 GtkWidget *frame_labels[TOTAL_QUADROS];
-
 int ultimo_page_fault = 0;
 gboolean simulacao_iniciada = FALSE;
 
@@ -54,16 +53,19 @@ const char *css_data =
     "  border: 2px solid #94BFBE;"
     "  background-color: #94BFBE;"
     "  color: #333333;"
+    "  font-size: 23px;"
+    "  font-weight: bold;"
     "}"
     "frame.page-fault {"
     "  background-color: #ACF7C1;"
     "  border-color: #ACF7C1;"
     "  color: #000000;"
+    "  font-size: 23px;"
+    "  font-weight: bold;"
     "}"
     "#janela-principal {"
     "  background-color: #3D6665;"
     "}";
-
 
 void aplicar_css(GtkWidget *widget) {
     GtkCssProvider *cssProvider = gtk_css_provider_new();
@@ -99,6 +101,7 @@ void inicializar_simulador() {
         memoria_fisica[i].ocupado = 0;
         memoria_fisica[i].pagina_virtual = -1;
     }
+    ponteiro_fifo = 0;
 }
 
 int substituir_pagina_fifo() {
@@ -173,9 +176,11 @@ void atualizar_lista_paginas() {
 }
 
 void atualizar_interface() {
-    gchar status[256];
-    snprintf(status, sizeof(status), "Tempo %d/%d - Acesso a pagina: %d - %s", tempo_atual + 1, TOTAL_ACESSOS, acessos[tempo_atual], ultimo_page_fault ? "PAGE FAULT" : "HIT");
-    gtk_label_set_text(GTK_LABEL(status_label), status);
+    if (tempo_atual < TOTAL_ACESSOS) {
+        gchar status[256];
+        snprintf(status, sizeof(status), "Tempo %d/%d - Acesso a pagina: %d - %s", tempo_atual + 1, TOTAL_ACESSOS, acessos[tempo_atual], ultimo_page_fault ? "PAGE FAULT" : "HIT");
+        gtk_label_set_text(GTK_LABEL(status_label), status);
+    }
     for (int i = 0; i < TOTAL_QUADROS; i++) {
         gchar info[128];
         if (memoria_fisica[i].ocupado) {
@@ -212,6 +217,43 @@ void on_next_clicked(GtkButton *button, gpointer user_data) {
     }
 }
 
+void on_reset_clicked(GtkButton *button, gpointer user_data) {
+    // Resetar variáveis
+    tempo_atual = 0;
+    simulacao_iniciada = FALSE;
+    ultimo_page_fault = 0;
+
+    // Resetar tabelas e memória
+    inicializar_simulador();
+
+    // Limpar lista de páginas exibidas
+    GList *children, *iter;
+    children = gtk_container_get_children(GTK_CONTAINER(pages_list_box));
+    for (iter = children; iter != NULL; iter = g_list_next(iter)) {
+        gtk_widget_destroy(GTK_WIDGET(iter->data));
+    }
+    g_list_free(children);
+
+    // Reabilitar controles
+    gtk_widget_set_sensitive(combo_algoritmo, TRUE);
+    gtk_widget_set_sensitive(button_next, TRUE);
+
+    // Atualizar label inicial
+    gtk_label_set_text(GTK_LABEL(label_info), "Simulação reiniciada. Escolha o algoritmo e clique em Próximo.");
+
+    // Apagar mensagem do status_label (tempo)
+    gtk_label_set_text(GTK_LABEL(status_label), "");
+
+    // Resetar frames visuais
+    for (int i = 0; i < TOTAL_QUADROS; i++) {
+        gtk_label_set_text(GTK_LABEL(frame_labels[i]), "Q[vazio]");
+        GtkStyleContext *context = gtk_widget_get_style_context(frames[i]);
+        gtk_style_context_remove_class(context, "page-fault");
+    }
+
+    atualizar_interface();
+}
+
 int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
     gerar_acessos();
@@ -219,26 +261,29 @@ int main(int argc, char *argv[]) {
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "Simulador de Paginas");
-    gtk_window_set_default_size(GTK_WINDOW(window), 600, 500);
+    gtk_window_set_default_size(GTK_WINDOW(window), 800, 600);
     g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
 
-    GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_container_add(GTK_CONTAINER(window), hbox);
-
-    GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
+    GtkWidget *main_vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 10);
+    gtk_container_add(GTK_CONTAINER(window), main_vbox);
 
     combo_algoritmo = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "FIFO");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "LRU");
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo_algoritmo), 0);
-    gtk_box_pack_start(GTK_BOX(vbox), combo_algoritmo, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(main_vbox), combo_algoritmo, FALSE, FALSE, 5);
+
+    GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_box_pack_start(GTK_BOX(main_vbox), hbox, TRUE, TRUE, 5);
+
+    GtkWidget *vbox_left = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox_left, TRUE, TRUE, 5);
 
     label_info = gtk_label_new("Clique em 'Proximo' para iniciar.");
-    gtk_box_pack_start(GTK_BOX(vbox), label_info, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox_left), label_info, FALSE, FALSE, 5);
 
     GtkWidget *align = gtk_alignment_new(0.5, 0.5, 0, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), align, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox_left), align, TRUE, TRUE, 5);
 
     memory_grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(memory_grid), 10);
@@ -247,7 +292,7 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < TOTAL_QUADROS; i++) {
         frames[i] = gtk_frame_new(NULL);
-        gtk_widget_set_size_request(frames[i], 100, 100);
+        gtk_widget_set_size_request(frames[i], 150, 150); // Tamanho aumentado
         frame_labels[i] = gtk_label_new("Q[vazio]");
         gtk_container_add(GTK_CONTAINER(frames[i]), frame_labels[i]);
         gtk_grid_attach(GTK_GRID(memory_grid), frames[i], i % 2, i / 2, 1, 1);
@@ -255,14 +300,28 @@ int main(int argc, char *argv[]) {
     }
 
     status_label = gtk_label_new("");
-    gtk_box_pack_start(GTK_BOX(vbox), status_label, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox_left), status_label, FALSE, FALSE, 5);
+
+    // Criar alinhamento para centralizar os botões
+    GtkWidget *align_buttons = gtk_alignment_new(0.5, 0.5, 0, 0);
+    gtk_box_pack_start(GTK_BOX(vbox_left), align_buttons, FALSE, FALSE, 5);
+
+    GtkWidget *buttons_hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);
+    gtk_container_add(GTK_CONTAINER(align_buttons), buttons_hbox);
 
     button_next = gtk_button_new_with_label("Proximo Acesso");
-    gtk_box_pack_start(GTK_BOX(vbox), button_next, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(buttons_hbox), button_next, FALSE, FALSE, 0);
     g_signal_connect(button_next, "clicked", G_CALLBACK(on_next_clicked), NULL);
+
+    button_reset = gtk_button_new_with_label("Reiniciar");
+    gtk_box_pack_start(GTK_BOX(buttons_hbox), button_reset, FALSE, FALSE, 0);
+    g_signal_connect(button_reset, "clicked", G_CALLBACK(on_reset_clicked), NULL);
 
     GtkWidget *vbox_right = gtk_box_new(GTK_ORIENTATION_VERTICAL, 5);
     gtk_box_pack_start(GTK_BOX(hbox), vbox_right, FALSE, FALSE, 5);
+
+    GtkWidget *pages_label = gtk_label_new("Paginas utilizadas:");
+    gtk_box_pack_start(GTK_BOX(vbox_right), pages_label, FALSE, FALSE, 5);
 
     pages_list_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 2);
     gtk_box_pack_start(GTK_BOX(vbox_right), pages_list_box, TRUE, TRUE, 5);

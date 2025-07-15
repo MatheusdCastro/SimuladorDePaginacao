@@ -30,7 +30,7 @@ typedef struct {
     int ocupado;
 } Quadro;
 
-int acessos[TOTAL_ACESSOS];
+int acessos[TOTAL_ACESSOS] = {1,2,3,4,1,2,5,7,3,9,1,2,3,4,1,2,5,7,3,9};
 Pagina tabela_paginas[TOTAL_PAGINAS];
 Quadro memoria_fisica[TOTAL_QUADROS];
 int ponteiro_fifo = 0;
@@ -78,20 +78,6 @@ void aplicar_css(GtkWidget *widget) {
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(cssProvider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     g_object_unref(cssProvider);
-}
-
-void gerar_acessos() {
-    srand(time(NULL));
-    for (int i = 0; i < TOTAL_ACESSOS; i++) {
-        if (i > 0 && rand() % 100 < 70) {
-            int deslocamento = (rand() % 3) - 1;
-            acessos[i] = acessos[i - 1] + deslocamento;
-            if (acessos[i] < 0) acessos[i] = 0;
-            if (acessos[i] >= PAGINAS_VIRTUAIS) acessos[i] = PAGINAS_VIRTUAIS - 1;
-        } else {
-            acessos[i] = rand() % PAGINAS_VIRTUAIS;
-        }
-    }
 }
 
 void inicializar_simulador() {
@@ -295,7 +281,6 @@ void on_reset_clicked(GtkButton *button, gpointer user_data) {
 
 int main(int argc, char *argv[]) {
     gtk_init(&argc, &argv);
-    gerar_acessos();
     inicializar_simulador();
 
     GtkWidget *window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

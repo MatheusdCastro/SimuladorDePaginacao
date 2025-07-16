@@ -1,5 +1,13 @@
 # Trabalho final Sistemas Operacionais
 Simulador de Substituição de Páginas e Page Fault com GTK
+Grupo:  
+- Diego Duarte de Lima 553621
+- Juan de Souza Holanda 557239
+- Herik Mario Muniz Rocha 558167
+- Matheus de Castro Vieira 553384
+- Mateus Andrade Maia 552593
+- Vinicius Lavor Lira 558164
+ 
 
 Descrição:
 -----------

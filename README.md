@@ -3,7 +3,7 @@ Simulador de Substituição de Páginas e Page Fault com GTK
 
 Descrição:
 -----------
-Este é um simulador gráfico para demonstrar os algoritmos de substituição de páginas FIFO e LRU, utilizando a biblioteca GTK em C.
+Este é um simulador gráfico para demonstrar os algoritmos de substituição de páginas FIFO,LRU e WSClock, utilizando a biblioteca GTK em C.
 
 Funcionalidades:
 - Interface gráfica com GTK.

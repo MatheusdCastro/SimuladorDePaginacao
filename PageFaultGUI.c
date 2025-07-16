@@ -8,6 +8,7 @@
 #define TOTAL_PAGINAS 10
 #define TOTAL_QUADROS 4
 #define INT_MAX_SIMULADOR 99999
+#define LIMIAR_WS 5
 
 typedef enum {
     FIFO,
@@ -70,6 +71,11 @@ const char *css_data =
     "}"
     "#janela-principal {"
     "  background-color: #3D6665;"
+    "}"
+    "frame.timestamp-expirado {"
+    "  background-color: #FFB6B6;"  // vermelho claro
+    "  border-color: #FFB6B6;"
+    "  color: #000000;"
     "}";
 
 void aplicar_css(GtkWidget *widget) {
@@ -116,17 +122,38 @@ int substituir_pagina_lru() {
     return quadro_mais_antigo;
 }
 
-int substituir_pagina_clock() {
-    while (1) {
+int substituir_pagina_wsclock() {
+    int inicio = ponteiro_clock;
+    int voltas = 0;
+
+    while (voltas < TOTAL_QUADROS) {
         int pagina = memoria_fisica[ponteiro_clock].pagina_virtual;
-        if (tabela_paginas[pagina].bitR == 0) {
-            int escolhido = ponteiro_clock;
-            ponteiro_clock = (ponteiro_clock + 1) % TOTAL_QUADROS;
-            return escolhido;
+
+        if (tabela_paginas[pagina].bitR == 1) {
+            tabela_paginas[pagina].bitR = 0;
+        } else {
+            int tempo_uso = tempo_atual - tabela_paginas[pagina].timestamp;
+            if (tempo_uso > LIMIAR_WS) {
+                if (tabela_paginas[pagina].bitM == 0) {
+                    int escolhido = ponteiro_clock;
+                    ponteiro_clock = (ponteiro_clock + 1) % TOTAL_QUADROS;
+                    return escolhido;
+                } else {
+                    tabela_paginas[pagina].bitM = 0;
+                }
+            }
         }
-        tabela_paginas[pagina].bitR = 0;
+
         ponteiro_clock = (ponteiro_clock + 1) % TOTAL_QUADROS;
+        voltas++;
+        
+        if (ponteiro_clock == inicio) {
+            return ponteiro_clock;
+        }
     }
+
+    // Se não encontrou nenhum candidato ideal, substitui onde o ponteiro parou
+    return ponteiro_clock;
 }
 
 void carregar_pagina(int pagina, int tempo_atual) {
@@ -148,7 +175,7 @@ void carregar_pagina(int pagina, int tempo_atual) {
     else if (algoritmo_usado == LRU)
         quadro_substituido = substituir_pagina_lru();
     else
-        quadro_substituido = substituir_pagina_clock();
+        quadro_substituido = substituir_pagina_wsclock();
 
     int pagina_antiga = memoria_fisica[quadro_substituido].pagina_virtual;
     tabela_paginas[pagina_antiga].atual = 0;
@@ -207,9 +234,18 @@ void atualizar_interface() {
         GtkStyleContext *context = gtk_widget_get_style_context(frames[i]);
         gtk_style_context_remove_class(context, "page-fault");
         gtk_style_context_remove_class(context, "clock-pointer");
+        gtk_style_context_remove_class(context, "timestamp-expirado");
 
         if (ultimo_page_fault && memoria_fisica[i].pagina_virtual == acessos[tempo_atual]) {
             gtk_style_context_add_class(context, "page-fault");
+        }
+
+        if (algoritmo_usado == CLOCK && memoria_fisica[i].ocupado) {
+            int p = memoria_fisica[i].pagina_virtual;
+            int tempo_uso = tempo_atual - tabela_paginas[p].timestamp;
+            if (tempo_uso > LIMIAR_WS) {
+                gtk_style_context_add_class(context, "timestamp-expirado");
+            }
         }
 
         if (algoritmo_usado == CLOCK && i == ponteiro_clock) {
@@ -224,7 +260,7 @@ void on_next_clicked(GtkButton *button, gpointer user_data) {
         const gchar *alg_text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(combo_algoritmo));
         if (g_strcmp0(alg_text, "LRU") == 0)
             algoritmo_usado = LRU;
-        else if (g_strcmp0(alg_text, "Clock") == 0)
+        else if (g_strcmp0(alg_text, "WSClock") == 0)
             algoritmo_usado = CLOCK;
         else
             algoritmo_usado = FIFO;
@@ -294,7 +330,7 @@ int main(int argc, char *argv[]) {
     combo_algoritmo = gtk_combo_box_text_new();
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "FIFO");
     gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "LRU");
-    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "Clock");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo_algoritmo), "WSClock");
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo_algoritmo), 0);
     gtk_box_pack_start(GTK_BOX(main_vbox), combo_algoritmo, FALSE, FALSE, 5);
 
